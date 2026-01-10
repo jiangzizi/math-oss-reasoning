@@ -10,9 +10,12 @@ def get_response(user_prompt, model_name = "gpt-oss-120b/", port = 8000, logout:
     stream = client.chat.completions.create(
             model=model_name,
             messages=[{"role": "user", "content": user_prompt}],
-            temperature=0.5,
+            temperature=1.0,
+            top_p= 1.0,
             stream=True,
-            extra_body={"reasoning_effort": reasoning_effort}
+            max_tokens= 30720,
+            extra_body={"reasoning_effort": reasoning_effort},
+            timeout=36000,
         )
 
     output = ""
@@ -29,8 +32,6 @@ def get_response(user_prompt, model_name = "gpt-oss-120b/", port = 8000, logout:
             if logout:
                 print(content, end='', flush=True)
             output += content
-
-    print()
     return output
 
 if __name__ == "__main__":

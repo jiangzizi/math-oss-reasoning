@@ -2,7 +2,7 @@ import argparse
 from src.utils.vllm_backend import get_response
 from tqdm import tqdm
 import json
-import os
+import os, re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 ORIGINAL_INST = """Remember to put your answer on its own line after "Answer:"."""
@@ -23,9 +23,19 @@ def process_one(record, model_name, port, reasoning_effort):
     
     # 返回原始 record + 新字段
     updated_record = {**record}
+    updated_record["reasoning_prompt"] = new_content
     updated_record["gpt-oss-120b-response"] = response
     updated_record["model_name"] = model_name
     updated_record["reasoning_effort"] = reasoning_effort
+    standard_answer = record.get("reward_model", {}).get("ground_truth", "")
+    model_answer = re.search(r"\\boxed\{(.*?)\}", response, re.DOTALL)
+    if model_answer:
+        model_answer = model_answer.group(1).strip()
+    else:
+        model_answer = ""
+    updated_record["standard_answer"] = standard_answer
+    updated_record["model_answer"] = model_answer
+    updated_record["reward"] = 1.0 if (standard_answer == model_answer and standard_answer != "") else 0.0
     return updated_record
 
 def main():
@@ -37,6 +47,7 @@ def main():
     parser.add_argument("--max_workers", type=int, default=32, help="Number of threads for concurrent processing (default: 32)")
     parser.add_argument("--model_name", type=str, required=True, help="Model name/path for vLLM")
     parser.add_argument("--port", type=int, default=1145, help="vLLM server port (default: 1145)")
+    parser.add_argument("--max_lines", type=int, default=-1, help="Maximum number of lines to process (default: all)")
 
     args = parser.parse_args()
 
@@ -52,6 +63,8 @@ def main():
     # Step 1: Load all questions
     with open(raw_path, "r", encoding="utf-8") as f:
         lines = f.readlines()
+    if args.max_lines > 0:
+        lines = lines[:args.max_lines]
     questions = [json.loads(line) for line in lines]
 
     # Step 2: Build set of already processed indices
