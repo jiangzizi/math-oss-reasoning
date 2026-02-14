@@ -5,13 +5,14 @@ import json
 import os, re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+DEFAULT_INST = """Solve the following math problem step by step. The last line of your response should be of the form Answer: $Answer (without quotes) where $Answer is the answer to the problem.\n\n"""
 ORIGINAL_INST = """Remember to put your answer on its own line after "Answer:"."""
 COT_INST = """Let's think step by step and output your final answer within \\boxed{{}}."""
 
 def process_one(record, model_name, port, reasoning_effort):
     # 构造新 prompt
     content = record["prompt"][0]["content"]
-    new_content = content.replace(ORIGINAL_INST, COT_INST)
+    new_content = content.replace(ORIGINAL_INST, COT_INST).replace(DEFAULT_INST, "")
 
     response = get_response(
         new_content,
